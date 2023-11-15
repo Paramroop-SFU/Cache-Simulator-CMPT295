@@ -35,6 +35,7 @@ void runTrace(char *traceFile, Cache *cache) {
         break;
       case CACHE_EVICT:
         cache->miss_count++;
+        cache->eviction_count++;
         break;
       default:
         printf("Error: Invalid result from operateCache\n");
@@ -111,5 +112,6 @@ int main(int argc, char *argv[]) {
   //printSummary(cache.hit_count, cache.miss_count, cache.eviction_count);
   // deallocates the memory
   deallocate(&cache);
+  
   return 0;
 }
