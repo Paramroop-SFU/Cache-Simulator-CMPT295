@@ -150,7 +150,22 @@ void evict_cache(const unsigned long long address, int way, Cache *cache)
 // and triggering evictions from other caches.
 void flush_cache(const unsigned long long block_address, Cache *cache)
 {
+ int set = pow(2,cache->setBits);
+  
 
+  for (int i = 0; i < set; i++)
+  {
+    for (int p = 0; p < cache->linesPerSet; p++)
+    {
+        if (cache->sets[i].lines[p].valid == true && cache->sets[i].lines[p].block_addr == block_address)
+        {
+          cache->sets[i].lines[p].valid = 0;
+          cache->sets[i].lines[p].r_rate = 0;
+          
+        }
+    }
+  }
+  
 }
 // checks if the address is in the cache, if not and if the cache is full
 // evicts an address
@@ -182,6 +197,7 @@ result operateCache(const unsigned long long address, Cache *cache)
       evict_cache(address,victim,cache);
       allocate_cache(address,cache);
        r.status = 2; 
+       cache->eviction_count++;
       
    }
 
@@ -234,3 +250,4 @@ void printSummary(const Cache *cache)
   printf("\n%s hits:%d misses:%d evictions:%d", cache->name, cache->hit_count,
          cache->miss_count, cache->eviction_count);
 }
+

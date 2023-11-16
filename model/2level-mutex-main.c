@@ -11,7 +11,8 @@
 #include <string.h>
 #include <unistd.h>
 
-void validate_2level(const Cache *L1, const Cache *L2) {
+void validate_2level(const Cache *L1, const Cache *L2)
+{
   for (int i = 0; i < (1 << L1->setBits); i++)
     for (int j = 0; j < L1->linesPerSet; j++)
       if (L1->sets[i].lines[j].valid)
@@ -20,27 +21,109 @@ void validate_2level(const Cache *L1, const Cache *L2) {
             "Exclusive Property Violation: L1 Cache Block found in L2 Cache.");
 }
 
+
+result operateCache2(const unsigned long long address, Cache *cache)
+{
+   result r;
+   unsigned long long block = address_to_block(address,cache);
+   unsigned long long set_num = cache_set(address,cache);
+   r.insert_block = block;
+   bool found = probe_cache(address,cache);
+   if (found == true)
+   {
+    printf(" %s hit ",cache->name);
+    r.status = 1; 
+    return r;
+   }
+   bool space = avail_cache(address,cache);
+   if (space == true)
+   {
+    allocate_cache(address,cache);
+    r.status = 0; 
+   }
+   else
+   {
+      unsigned long long victim = victim_cache(address,cache);
+      r.victim_block = cache->sets[set_num].lines[victim].block_addr;
+      evict_cache(address,victim,cache);
+      allocate_cache(address,cache);
+       r.status = 2; 
+       cache->eviction_count++;
+      
+   }
+
+
+  // Hit
+  // Miss
+  // Evict
+  return r;
+}
+
 // get the input from the file and call operateCache function to see if the
 // address is in the cache.
-void runTrace(char *traceFile, Cache *L1, Cache *L2) {
+void runTrace(char *traceFile, Cache *L1, Cache *L2)
+{
   FILE *input = fopen(traceFile, "r");
   int size;
   char operation;
   unsigned long long address;
   result r_L1, r_L2;
-  while (fscanf(input, " %c %llx,%d", &operation, &address, &size) == 3) {
+  while (fscanf(input, " %c %llx,%d", &operation, &address, &size) == 3)
+  {
     printf("\n%c %llx,", operation, address);
 
-    if (operation != 'M' && operation != 'L' && operation != 'S') {
+    if (operation != 'M' && operation != 'L' && operation != 'S')
+    {
       continue;
     }
+
+    if (probe_cache(address, L1) == true)
+    {
+      L1->hit_count++;
+      r_L1 = operateCache(address, L1);
+      print_result(r_L1);
+    }
+    else if (probe_cache(address, L2) == true)
+      {
+        printf(" L2 hit ");
+        unsigned long long block = address_to_block(address, L2);
+        flush_cache(block, L2);
+        L2->hit_count++;
+        L1->miss_count++;
+        L2->eviction_count++;
+        r_L1 = operateCache(address, L1);
+        print_result(r_L1);
+
+        if (r_L1.status == CACHE_EVICT)
+        {
+          //printf("WELCOME TO \033[1;31mOPENGENUS\033[0m");
+          r_L2 = operateCache2(r_L1.victim_block, L2);
+          r_L2.status = 1;
+          print_result(r_L2);
+          printf(" L2 insert ");
+        }
+      }
+    else
+    {
+     // THIS ONE WRONG THE L1
+      r_L1 = operateCache(address, L1);
+      print_result(r_L1);
+      L1->miss_count++;
+      L2->miss_count++;
+      if (r_L1.status == CACHE_EVICT)
+      {
+        // printf("\033[1;31mWELCOME TO OPENGENUS\033[0m");
+        r_L2 = operateCache(r_L1.victim_block, L2);
+        print_result(r_L2);
+      }
+    }
+    //print_result(r_L1);
 
     // probe_L1 = True, probe_L2 = True. Not possible. Violates exclusive
     // probe_L1 = True, probe_L2 = False. Hit in L1
     // probe_L1 = False, probe_L2 = True. Hit in L2. Evict from L2 and insert
-    // L1. May evict something from L1 and cause insertion in L2. 
+    // L1. May evict something from L1 and cause insertion in L2.
     // probe_L1 = False, probe_L2 = False. Miss in both. Insert in L1. May evict something from L1 and cause insertion in L2.
-
 
     // TODO: Operate L1 and L2 cache to implement
     // 2-level inclusive cache model
@@ -68,21 +151,22 @@ into)        │
      ------ ▼
  */
     //     // Consider evictions in L1 and L2
-/**
-+------------------------+---------------------------------+
-|                        | Steps                           |
-+------------------------+---------------------------------+
-| Case 1: L1 hit         | .......                         |
-+------------------------+---------------------------------+
-| Case 2: L1 Miss, L2 Hit| Insert block L1, Remove from L2.|                    
-+--------------------------+-------------------------------+
-| Case 3: L1 Miss, L2 Miss | Insert block in L1. Bypass L2 | 
-| If another block is evicted from L1, insert it in L2.    |
-+--------------------------+-------------------------------+
-     *
-     */
+    /**
+    +------------------------+---------------------------------+
+    |                        | Steps                           |
+    +------------------------+---------------------------------+
+    | Case 1: L1 hit         | .......                         |
+    +------------------------+---------------------------------+
+    | Case 2: L1 Miss, L2 Hit| Insert block L1, Remove from L2.|
+    +--------------------------+-------------------------------+
+    | Case 3: L1 Miss, L2 Miss | Insert block in L1. Bypass L2 |
+    | If another block is evicted from L1, insert it in L2.    |
+    +--------------------------+-------------------------------+
+         *
+         */
 
-    if (operation == 'M') {
+    if (operation == 'M')
+    {
       L1->hit_count++;
     }
     validate_2level(L1, L2);
@@ -90,13 +174,16 @@ into)        │
   fclose(input);
 }
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   char *configFile = "2-level.config";
   char *traceFile = "example.trace";
   int option = 0;
   int lfu = 0;
-  while ((option = getopt(argc, argv, "c:t:h:LF")) != -1) {
-    switch (option) {
+  while ((option = getopt(argc, argv, "c:t:h:LF")) != -1)
+  {
+    switch (option)
+    {
     case 't':
       traceFile = optarg;
       break;
@@ -164,10 +251,21 @@ int main(int argc, char *argv[]) {
   Cache L2;
   L2.lfu = lfu;
   L2.displayTrace = 1;
+
+  L1.setBits = L1_setBits;
+  L1.linesPerSet = L1_ways;
+  L1.blockBits = blockBits;
+  L2.blockBits = blockBits;
+  L2.setBits = L2_setBits;
+  L2.linesPerSet = L2_ways;
   // TODO: Initialize L2 cache
+  cacheSetUp(&L1, "L1");
+  cacheSetUp(&L2, "L2");
   runTrace(traceFile, &L1, &L2);
 
   printSummary(&L1);
   printSummary(&L2);
+  deallocate(&L1);
+  deallocate(&L2);
   return 0;
 }
