@@ -28,8 +28,8 @@
     "comment": "Program ran and output matched."
   },
   "2lvlt4": {
-    "mark": 0,
-    "comment": "Program exited with return code. Either your output does not match the reference output. Check the log to see if you program has any errors. Also see word-count/out/input.txt and compare against your output. Ensure you are using the prints match exactly as specified. Check hints section on assignment page.2lvlt41"
+    "mark": 10,
+    "comment": "Program ran and output matched."
   },
   "userid": "GithubID:assignment-4-Paramroop-SFU"
 }

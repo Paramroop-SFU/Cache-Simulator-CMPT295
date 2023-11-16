@@ -58,21 +58,20 @@ unsigned long long cache_set(const unsigned long long address,const Cache *cache
 // Check if the address is found in the cache. If so, return true. else return false.
 bool probe_cache(const unsigned long long address, const Cache *cache)
 {
-  int set = pow(2,cache->setBits);
+  //int set = pow(2,cache->setBits);
   unsigned long long block = address_to_block(address,cache);
+  unsigned long long set = cache_set(address,cache);
 
-  for (int i = 0; i < set; i++)
-  {
     for (int p = 0; p < cache->linesPerSet; p++)
     {
-        if (cache->sets[i].lines[p].valid == true && cache->sets[i].lines[p].block_addr == block)
+        if (cache->sets[set].lines[p].valid == true && cache->sets[set].lines[p].block_addr == block)
         {
-          cache->sets[i].recentRate++;
-          cache->sets[i].lines[p].r_rate = cache->sets[i].recentRate;
+          cache->sets[set].recentRate++;
+          cache->sets[set].lines[p].r_rate = increment(set,cache) + 1;
           return true;
         }
     }
-  }
+
   return false;
 }
 
@@ -91,7 +90,7 @@ void allocate_cache(const unsigned long long address, const Cache *cache)
        cache_pos.lines[i].tag = cache_tag(address,cache);
         cache_pos.lines[i].valid = 1;
         cache_pos.recentRate++;
-        cache_pos.lines[i].r_rate = cache_pos.recentRate;
+        cache_pos.lines[i].r_rate = increment(set_position,cache) + 1;
        return;
     }
   }
@@ -192,12 +191,12 @@ result operateCache(const unsigned long long address, Cache *cache)
    else
    {
     printf(" %s insert + eviction ",cache->name);
-      unsigned long long victim = victim_cache(address,cache);
-      r.victim_block = cache->sets[set_num].lines[victim].block_addr;
-      evict_cache(address,victim,cache);
-      allocate_cache(address,cache);
-       r.status = 2; 
-       cache->eviction_count++;
+    unsigned long long victim = victim_cache(address,cache);
+    r.victim_block = cache->sets[set_num].lines[victim].block_addr;
+    evict_cache(address,victim,cache);
+    allocate_cache(address,cache);
+    r.status = 2; 
+    cache->eviction_count++;
       
    }
 
@@ -250,4 +249,18 @@ void printSummary(const Cache *cache)
   printf("\n%s hits:%d misses:%d evictions:%d", cache->name, cache->hit_count,
          cache->miss_count, cache->eviction_count);
 }
+
+int increment(const unsigned long long set, const Cache* cache)
+{
+  int max = 0;
+  for (int i = 0; i < cache->linesPerSet; i++)
+  {
+      if(cache->sets[set].lines[i].r_rate > max)
+      {
+        max = cache->sets[set].lines[i].r_rate;
+      }
+  }
+    return max;
+}
+
 
