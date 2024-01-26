@@ -67,7 +67,7 @@ bool probe_cache(const unsigned long long address, const Cache *cache)
         if (cache->sets[set].lines[p].valid == true && cache->sets[set].lines[p].block_addr == block)
         {
           cache->sets[set].recentRate++;
-          cache->sets[set].lines[p].r_rate = increment(set,cache) + 1;
+          cache->sets[set].lines[p].r_rate = increment(set,cache) ;
           return true;
         }
     }
@@ -90,7 +90,7 @@ void allocate_cache(const unsigned long long address, const Cache *cache)
        cache_pos.lines[i].tag = cache_tag(address,cache);
         cache_pos.lines[i].valid = 1;
         cache_pos.recentRate++;
-        cache_pos.lines[i].r_rate = increment(set_position,cache) + 1;
+        cache_pos.lines[i].r_rate = increment(set_position,cache);
        return;
     }
   }
@@ -260,7 +260,7 @@ int increment(const unsigned long long set, const Cache* cache)
         max = cache->sets[set].lines[i].r_rate;
       }
   }
-    return max;
+    return max +1;
 }
 
 
